@@ -22,7 +22,7 @@ public class NotificationService
         };
     }
 
-    public void ShowReminder(Bill bill, NotificationStyle style, bool overdue)
+    public void ShowReminder(Bill bill, NotificationStyle style, bool overdue, string? customSoundPath = null)
     {
         var daysLeft = (bill.DueDate.Date - DateTime.Today).Days;
         var subtitle = overdue
@@ -54,6 +54,7 @@ public class NotificationService
         {
             case NotificationStyle.Popup:
                 builder.SetToastDuration(ToastDuration.Long);
+                ApplyCustomAudio(builder, customSoundPath);
                 break;
             case NotificationStyle.Subtle:
                 builder.SetToastDuration(ToastDuration.Short)
@@ -61,11 +62,18 @@ public class NotificationService
                 break;
             case NotificationStyle.Banner:
             default:
-                // OS default banner behavior; no overrides needed.
+                ApplyCustomAudio(builder, customSoundPath);
                 break;
         }
 
         builder.Show();
+    }
+
+    /// <summary>Points the toast's audio at the user's uploaded sound file, if one is set and still on disk.</summary>
+    private static void ApplyCustomAudio(ToastContentBuilder builder, string? customSoundPath)
+    {
+        if (string.IsNullOrWhiteSpace(customSoundPath) || !System.IO.File.Exists(customSoundPath)) return;
+        builder.AddAudio(new Uri(customSoundPath));
     }
 
     public static void ClearAll() => ToastNotificationManagerCompat.History.Clear();

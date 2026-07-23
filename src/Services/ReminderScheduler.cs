@@ -60,7 +60,7 @@ public class ReminderScheduler
             if (bill.LastNotifiedDate?.Date == today) continue;
 
             var style = bill.NotificationStyleOverride ?? settings.DefaultNotificationStyle;
-            _notificationService.ShowReminder(bill, style, overdue);
+            _notificationService.ShowReminder(bill, style, overdue, settings.CustomAlarmSoundPath);
             bill.LastNotifiedDate = today;
             changed = true;
         }

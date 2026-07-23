@@ -1,10 +1,12 @@
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using Microsoft.Win32;
 using RemindMe.Models;
 using RemindMe.Services;
 using RemindMe.Views;
@@ -69,6 +71,9 @@ public partial class MainWindow : Window
             _ => 1
         };
         StartupCheckBox.IsChecked = _settings.RunAtStartup;
+        AlarmSoundNameText.Text = string.IsNullOrWhiteSpace(_settings.CustomAlarmSoundName)
+            ? "Default"
+            : _settings.CustomAlarmSoundName;
         _isLoadingSettingsUi = false;
     }
 
@@ -98,9 +103,16 @@ public partial class MainWindow : Window
         {
             Bills.Add(newBill);
             SaveBills();
+            _storage.AppendHistory(MakeHistoryEntry(newBill, HistoryEventType.Added));
             LoadBills();
             RefreshSummary();
         }
+    }
+
+    private void HistoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new HistoryWindow(_storage) { Owner = this };
+        dialog.ShowDialog();
     }
 
     private void LightTheme_Click(object sender, RoutedEventArgs e) => SetDarkMode(false);
@@ -134,6 +146,90 @@ public partial class MainWindow : Window
         _storage.SaveSettings(_settings);
     }
 
+    private void ChooseAlarmSound_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Choose Alarm Sound",
+            Filter = "Audio files (*.wav;*.mp3)|*.wav;*.mp3|All files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        try
+        {
+            var storedPath = _storage.ImportAlarmSound(dialog.FileName);
+            _settings.CustomAlarmSoundPath = storedPath;
+            _settings.CustomAlarmSoundName = Path.GetFileName(dialog.FileName);
+            _storage.SaveSettings(_settings);
+            AlarmSoundNameText.Text = _settings.CustomAlarmSoundName;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Couldn't use that sound file: {ex.Message}", "Alarm Sound",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void ResetAlarmSound_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.CustomAlarmSoundPath = null;
+        _settings.CustomAlarmSoundName = null;
+        _storage.SaveSettings(_settings);
+        AlarmSoundNameText.Text = "Default";
+    }
+
+    private void BackupData_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new SaveFileDialog
+        {
+            Title = "Backup RemindMe Data",
+            Filter = "RemindMe backup (*.remindme.json)|*.remindme.json|All files (*.*)|*.*",
+            FileName = $"RemindMe-backup-{DateTime.Now:yyyy-MM-dd}.remindme.json"
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        try
+        {
+            _storage.ExportBackup(dialog.FileName, Bills, _storage.LoadHistory(), _settings);
+            MessageBox.Show(this, "Backup saved.", "Backup", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Backup failed: {ex.Message}", "Backup", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void RestoreData_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Restore RemindMe Data",
+            Filter = "RemindMe backup (*.remindme.json)|*.remindme.json|All files (*.*)|*.*"
+        };
+        if (dialog.ShowDialog(this) != true) return;
+
+        var bundle = _storage.ReadBackup(dialog.FileName);
+        if (bundle is null)
+        {
+            MessageBox.Show(this, "That file isn't a valid RemindMe backup.", "Restore",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
+        }
+
+        var result = MessageBox.Show(this,
+            $"Restore from this backup? This replaces your current {Bills.Count} bill(s), history, and settings.",
+            "Restore Data", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+
+        _storage.ApplyBackup(bundle);
+        _settings = bundle.Settings;
+        ThemeManager.Apply(_settings.DarkMode);
+        LoadBills();
+        LoadSettingsIntoUi();
+        RefreshSummary();
+        MessageBox.Show(this, "Restore complete.", "Restore", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
+
     // ----- Bill card actions -----
 
     private void MarkPaid_Click(object sender, RoutedEventArgs e)
@@ -143,6 +239,7 @@ public partial class MainWindow : Window
         {
             bill.MarkPaid(DateTime.Now);
             SaveBills();
+            _storage.AppendHistory(MakeHistoryEntry(bill, HistoryEventType.Paid));
             LoadBills();
             RefreshSummary();
         });
@@ -152,6 +249,21 @@ public partial class MainWindow : Window
     {
         if (sender is not Button { Tag: Bill bill }) return;
         bill.MarkUnpaid();
+        SaveBills();
+        _storage.AppendHistory(MakeHistoryEntry(bill, HistoryEventType.Unpaid));
+        LoadBills();
+        RefreshSummary();
+    }
+
+    private void Delete_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: Bill bill }) return;
+        var result = MessageBox.Show(this, $"Delete \"{bill.Name}\"? This cannot be undone.",
+            "Delete Bill", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result != MessageBoxResult.Yes) return;
+
+        _storage.AppendHistory(MakeHistoryEntry(bill, HistoryEventType.Deleted));
+        Bills.Remove(bill);
         SaveBills();
         LoadBills();
         RefreshSummary();
@@ -186,6 +298,7 @@ public partial class MainWindow : Window
         {
             case "pay":
                 bill.MarkPaid(DateTime.Now);
+                _storage.AppendHistory(MakeHistoryEntry(bill, HistoryEventType.Paid));
                 break;
             case "snooze":
                 bill.SnoozeUntil = DateTime.Today.AddDays(1);
@@ -196,6 +309,17 @@ public partial class MainWindow : Window
         LoadBills();
         RefreshSummary();
     }
+
+    private static HistoryEntry MakeHistoryEntry(Bill bill, HistoryEventType type) => new()
+    {
+        BillId = bill.Id,
+        BillName = bill.Name,
+        Category = bill.Category,
+        Description = bill.Description,
+        DueDate = bill.DueDate,
+        EventDate = DateTime.Now,
+        EventType = type
+    };
 
     /// <summary>Quick, satisfying scale + fade pulse on the card before it re-sorts to "paid".</summary>
     private void AnimateCard(object sender, Action onComplete)

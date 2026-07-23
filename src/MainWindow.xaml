@@ -24,6 +24,7 @@
 
         <!-- Sidebar -->
         <Border Grid.Column="0" Background="{DynamicResource SidebarBackgroundBrush}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="24,32,24,24">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,36">
                     <TextBlock Text="&#xE73E;" FontFamily="{StaticResource IconFont}" FontSize="22"
@@ -33,7 +34,9 @@
                 </StackPanel>
 
                 <Button x:Name="AddBillButton" Content="+  Add Bill" Style="{StaticResource PillButton}"
-                        HorizontalContentAlignment="Center" Margin="0,0,0,28" Click="AddBillButton_Click"/>
+                        HorizontalContentAlignment="Center" Margin="0,0,0,10" Click="AddBillButton_Click"/>
+                <Button x:Name="HistoryButton" Content="History" Style="{StaticResource GhostPillButton}"
+                        HorizontalContentAlignment="Center" Margin="0,0,0,28" Click="HistoryButton_Click"/>
 
                 <TextBlock Text="THEME" Style="{StaticResource SubText}" Margin="4,0,0,8" FontSize="11"/>
                 <Grid Margin="0,0,0,24">
@@ -55,10 +58,37 @@
                     <ComboBoxItem Content="Subtle (short + silent)"/>
                 </ComboBox>
 
-                <CheckBox x:Name="StartupCheckBox" Content="Run at Windows startup" Margin="4,0,0,0"
+                <CheckBox x:Name="StartupCheckBox" Content="Run at Windows startup" Margin="4,0,0,24"
                           Foreground="{DynamicResource PrimaryTextBrush}"
                           Checked="StartupCheckBox_Changed" Unchecked="StartupCheckBox_Changed"/>
+
+                <TextBlock Text="ALARM SOUND" Style="{StaticResource SubText}" Margin="4,0,0,8" FontSize="11"/>
+                <TextBlock x:Name="AlarmSoundNameText" Style="{StaticResource SubText}" Margin="4,0,0,8"
+                           TextWrapping="Wrap" Text="Default"/>
+                <Grid Margin="0,0,0,24">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Choose..." Style="{StaticResource GhostPillButton}"
+                            Margin="0,0,4,0" Click="ChooseAlarmSound_Click"/>
+                    <Button Grid.Column="1" Content="Reset" Style="{StaticResource GhostPillButton}"
+                            Margin="4,0,0,0" Click="ResetAlarmSound_Click"/>
+                </Grid>
+
+                <TextBlock Text="DATA" Style="{StaticResource SubText}" Margin="4,0,0,8" FontSize="11"/>
+                <Grid Margin="0,0,0,4">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Grid.Column="0" Content="Backup" Style="{StaticResource GhostPillButton}"
+                            Margin="0,0,4,0" Click="BackupData_Click"/>
+                    <Button Grid.Column="1" Content="Restore" Style="{StaticResource GhostPillButton}"
+                            Margin="4,0,0,0" Click="RestoreData_Click"/>
+                </Grid>
             </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <!-- Main content -->
@@ -144,6 +174,8 @@
                                                 Tag="{Binding}" Click="Snooze_Click" Margin="0,0,8,0"/>
                                         <Button Content="Edit" Style="{StaticResource GhostPillButton}" Padding="12,6"
                                                 Tag="{Binding}" Click="Edit_Click" Margin="0,0,8,0"/>
+                                        <Button Content="Delete" Style="{StaticResource GhostPillButton}" Padding="12,6"
+                                                Tag="{Binding}" Click="Delete_Click"/>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="3" Orientation="Horizontal">
