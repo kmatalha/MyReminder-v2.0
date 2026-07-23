@@ -20,37 +20,39 @@
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="EmptyState" Visibility="Collapsed">
-                <TextBlock Text="No history yet." Style="{StaticResource SubText}" Margin="0,40,0,0"
-                           HorizontalAlignment="Center"/>
-            </StackPanel>
-            <ItemsControl x:Name="HistoryList">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Style="{StaticResource BillCard}" Padding="14">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock FontWeight="SemiBold" FontSize="14"
-                                               Foreground="{DynamicResource PrimaryTextBrush}">
-                                        <Run Text="{Binding EventLabel}"/>
-                                        <Run Text=" · "/>
-                                        <Run Text="{Binding BillName}"/>
-                                    </TextBlock>
-                                    <TextBlock Text="{Binding Description}" Style="{StaticResource SubText}"
-                                               Margin="0,2,0,0" TextWrapping="Wrap"
-                                               Visibility="{Binding Description, Converter={StaticResource StringToVisibility}}"/>
-                                </StackPanel>
-                                <TextBlock Grid.Column="1" Text="{Binding EventDate, StringFormat={}{0:MMM d, yyyy h:mm tt}}"
-                                           Style="{StaticResource SubText}" VerticalAlignment="Top"/>
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <Grid>
+                <StackPanel x:Name="EmptyState" Visibility="Collapsed">
+                    <TextBlock Text="No history yet." Style="{StaticResource SubText}" Margin="0,40,0,0"
+                               HorizontalAlignment="Center"/>
+                </StackPanel>
+                <ItemsControl x:Name="HistoryList">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Style="{StaticResource BillCard}" Padding="14">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock FontWeight="SemiBold" FontSize="14"
+                                                   Foreground="{DynamicResource PrimaryTextBrush}">
+                                            <Run Text="{Binding EventLabel}"/>
+                                            <Run Text=" · "/>
+                                            <Run Text="{Binding BillName}"/>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Description}" Style="{StaticResource SubText}"
+                                                   Margin="0,2,0,0" TextWrapping="Wrap"
+                                                   Visibility="{Binding Description, Converter={StaticResource StringToVisibility}}"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding EventDate, StringFormat={}{0:MMM d, yyyy h:mm tt}}"
+                                               Style="{StaticResource SubText}" VerticalAlignment="Top"/>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Grid>
         </ScrollViewer>
 
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
