@@ -12,6 +12,8 @@
         <conv:CategoryToIconConverter x:Key="CategoryToIcon"/>
         <conv:BillStatusToBrushConverter x:Key="StatusToBrush"/>
         <conv:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibility"/>
+        <conv:StringToVisibilityConverter x:Key="StringToVisibility"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility"/>
     </Window.Resources>
 
     <Grid>
@@ -131,9 +133,10 @@
                                             <Ellipse Width="8" Height="8" Fill="{Binding Converter={StaticResource StatusToBrush}}"
                                                      VerticalAlignment="Center" Margin="0,0,6,0"/>
                                             <TextBlock Text="{Binding StatusText}" Style="{StaticResource SubText}"/>
-                                            <TextBlock Text="  ·  " Style="{StaticResource SubText}"/>
-                                            <TextBlock Text="{Binding Amount, StringFormat={}{0:C}}" Style="{StaticResource SubText}"/>
                                         </StackPanel>
+                                        <TextBlock Text="{Binding Description}" Style="{StaticResource SubText}"
+                                                   TextWrapping="Wrap" MaxWidth="440" Margin="0,4,0,0"
+                                                   Visibility="{Binding Description, Converter={StaticResource StringToVisibility}}"/>
                                     </StackPanel>
 
                                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,12,0">
@@ -143,9 +146,14 @@
                                                 Tag="{Binding}" Click="Edit_Click" Margin="0,0,8,0"/>
                                     </StackPanel>
 
-                                    <Button Grid.Column="3" Content="Mark Paid" Style="{StaticResource PillButton}"
-                                            Tag="{Binding}" Click="MarkPaid_Click"
-                                            Visibility="{Binding IsPaid, Converter={StaticResource InverseBoolToVisibility}}"/>
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                        <Button Content="Mark Paid" Style="{StaticResource PillButton}"
+                                                Tag="{Binding}" Click="MarkPaid_Click"
+                                                Visibility="{Binding IsPaid, Converter={StaticResource InverseBoolToVisibility}}"/>
+                                        <Button Content="Mark Unpaid" Style="{StaticResource GhostPillButton}"
+                                                Tag="{Binding}" Click="MarkUnpaid_Click"
+                                                Visibility="{Binding IsPaid, Converter={StaticResource BoolToVisibility}}"/>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </DataTemplate>

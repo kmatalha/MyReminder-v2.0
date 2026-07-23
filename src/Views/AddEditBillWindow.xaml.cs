@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using RemindMe.Models;
 
@@ -19,6 +20,9 @@ public partial class AddEditBillWindow : Window
         CategoryCombo.SelectedIndex = 0;
         RecurrenceCombo.SelectedIndex = 0;
         NotificationStyleCombo.SelectedIndex = 0;
+
+        PopulateTimeCombos();
+        SetReminderTime(new TimeSpan(9, 0, 0));
     }
 
     public AddEditBillWindow(Bill billToEdit) : this()
@@ -28,9 +32,10 @@ public partial class AddEditBillWindow : Window
 
         NameBox.Text = billToEdit.Name;
         CategoryCombo.SelectedIndex = (int)billToEdit.Category;
-        AmountBox.Text = billToEdit.Amount.ToString(CultureInfo.InvariantCulture);
+        DescriptionBox.Text = billToEdit.Description;
         DueDatePicker.SelectedDate = billToEdit.DueDate;
         ReminderStartPicker.SelectedDate = billToEdit.ReminderStartDate;
+        SetReminderTime(billToEdit.ReminderTime);
         RecurrenceCombo.SelectedIndex = (int)billToEdit.Recurrence;
         NotificationStyleCombo.SelectedIndex = billToEdit.NotificationStyleOverride switch
         {
@@ -41,16 +46,32 @@ public partial class AddEditBillWindow : Window
         };
     }
 
+    private void PopulateTimeCombos()
+    {
+        for (var h = 0; h < 24; h++)
+        {
+            ReminderHourCombo.Items.Add(h.ToString("00", CultureInfo.InvariantCulture));
+        }
+        foreach (var m in new[] { 0, 15, 30, 45 })
+        {
+            ReminderMinuteCombo.Items.Add(m.ToString("00", CultureInfo.InvariantCulture));
+        }
+    }
+
+    private void SetReminderTime(TimeSpan time)
+    {
+        ReminderHourCombo.SelectedIndex = Math.Clamp(time.Hours, 0, 23);
+        var nearestMinute = new[] { 0, 15, 30, 45 }
+            .OrderBy(m => Math.Abs(m - time.Minutes))
+            .First();
+        ReminderMinuteCombo.SelectedIndex = Array.IndexOf(new[] { 0, 15, 30, 45 }, nearestMinute);
+    }
+
     private void Save_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(NameBox.Text))
         {
             ShowError("Please enter a bill name.");
-            return;
-        }
-        if (!decimal.TryParse(AmountBox.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount) || amount < 0)
-        {
-            ShowError("Please enter a valid amount.");
             return;
         }
         if (DueDatePicker.SelectedDate is not DateTime dueDate)
@@ -68,13 +89,23 @@ public partial class AddEditBillWindow : Window
             ShowError("Reminder start date must be on or before the due date.");
             return;
         }
+        if (ReminderHourCombo.SelectedItem is not string hourText ||
+            ReminderMinuteCombo.SelectedItem is not string minuteText)
+        {
+            ShowError("Please choose an alarm time.");
+            return;
+        }
 
         var bill = _editingBill ?? new Bill();
         bill.Name = NameBox.Text.Trim();
         bill.Category = (BillCategory)CategoryCombo.SelectedIndex;
-        bill.Amount = amount;
+        bill.Description = DescriptionBox.Text?.Trim() ?? string.Empty;
         bill.DueDate = dueDate;
         bill.ReminderStartDate = reminderStart;
+        bill.ReminderTime = new TimeSpan(
+            int.Parse(hourText, CultureInfo.InvariantCulture),
+            int.Parse(minuteText, CultureInfo.InvariantCulture),
+            0);
         bill.Recurrence = (RecurrenceType)RecurrenceCombo.SelectedIndex;
         bill.NotificationStyleOverride = NotificationStyleCombo.SelectedIndex switch
         {

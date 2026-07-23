@@ -45,6 +45,7 @@ public class ReminderScheduler
     public void CheckNow()
     {
         var settings = _getSettings();
+        var now = DateTime.Now;
         var today = DateTime.Today;
         var bills = _getBills().ToList();
         var changed = false;
@@ -55,6 +56,7 @@ public class ReminderScheduler
             var overdue = bill.IsOverdue(today);
 
             if (!dueForReminder && !overdue) continue;
+            if (!bill.IsTimeToRing(now)) continue;
             if (bill.LastNotifiedDate?.Date == today) continue;
 
             var style = bill.NotificationStyleOverride ?? settings.DefaultNotificationStyle;

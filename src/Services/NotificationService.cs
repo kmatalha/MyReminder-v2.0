@@ -34,8 +34,14 @@ public class NotificationService
         var builder = new ToastContentBuilder()
             .AddArgument("billId", bill.Id.ToString())
             .AddText($"{(overdue ? "⚠ " : "")}{bill.Name}")
-            .AddText($"{subtitle} · {bill.Amount:C}")
-            .AddButton(new ToastButton("Mark as Paid", new ToastArguments()
+            .AddText(subtitle);
+
+        if (!string.IsNullOrWhiteSpace(bill.Description))
+        {
+            builder.AddText(bill.Description);
+        }
+
+        builder.AddButton(new ToastButton("Mark as Paid", new ToastArguments()
                 .Add("action", "pay")
                 .Add("billId", bill.Id.ToString())
                 .ToString()))

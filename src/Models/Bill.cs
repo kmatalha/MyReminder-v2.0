@@ -18,7 +18,13 @@ public class Bill : INotifyPropertyChanged
 
     public BillCategory Category { get; set; } = BillCategory.Other;
 
-    public decimal Amount { get; set; }
+    private string _description = string.Empty;
+    /// <summary>Optional free-text note about the bill.</summary>
+    public string Description
+    {
+        get => _description;
+        set => SetField(ref _description, value ?? string.Empty);
+    }
 
     private DateTime _dueDate;
     public DateTime DueDate
@@ -35,6 +41,9 @@ public class Bill : INotifyPropertyChanged
     }
 
     public RecurrenceType Recurrence { get; set; } = RecurrenceType.OneTime;
+
+    /// <summary>Time of day the alarm/reminder toast should ring, once the bill is due for a reminder.</summary>
+    public TimeSpan ReminderTime { get; set; } = new TimeSpan(9, 0, 0);
 
     private bool _isPaid;
     public bool IsPaid
@@ -66,22 +75,26 @@ public class Bill : INotifyPropertyChanged
 
     public bool IsOverdue(DateTime today) => !IsPaid && today.Date > DueDate.Date;
 
+    /// <summary>True once the clock has reached this bill's chosen alarm time for the day.</summary>
+    public bool IsTimeToRing(DateTime now) => now.TimeOfDay >= ReminderTime;
+
     [JsonIgnore]
     public string StatusText
     {
         get
         {
             var today = DateTime.Today;
+            var alarmText = $"Alarm {DateTime.Today.Add(ReminderTime):h:mm tt}";
             if (IsPaid) return $"Paid{(LastPaidDate.HasValue ? $" on {LastPaidDate:MMM d}" : "")}";
             if (IsOverdue(today))
             {
                 var days = (today - DueDate.Date).Days;
-                return $"Overdue by {days} day{(days == 1 ? "" : "s")}";
+                return $"Overdue by {days} day{(days == 1 ? "" : "s")} · {alarmText}";
             }
             var left = (DueDate.Date - today).Days;
-            if (left == 0) return "Due today";
-            if (left < 0) return "Overdue";
-            return $"Due in {left} day{(left == 1 ? "" : "s")} ({DueDate:MMM d})";
+            if (left == 0) return $"Due today · {alarmText}";
+            if (left < 0) return $"Overdue · {alarmText}";
+            return $"Due in {left} day{(left == 1 ? "" : "s")} ({DueDate:MMM d}) · {alarmText}";
         }
     }
 
@@ -108,6 +121,14 @@ public class Bill : INotifyPropertyChanged
             : DueDate.AddYears(1);
         ReminderStartDate = DueDate - offset;
         IsPaid = false;
+    }
+
+    /// <summary>Reverts a bill back to unpaid (e.g. marked paid by mistake).</summary>
+    public void MarkUnpaid()
+    {
+        IsPaid = false;
+        LastPaidDate = null;
+        LastNotifiedDate = null;
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;

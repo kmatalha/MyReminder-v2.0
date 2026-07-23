@@ -148,6 +148,15 @@ public partial class MainWindow : Window
         });
     }
 
+    private void MarkUnpaid_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: Bill bill }) return;
+        bill.MarkUnpaid();
+        SaveBills();
+        LoadBills();
+        RefreshSummary();
+    }
+
     private void Snooze_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: Bill bill }) return;
