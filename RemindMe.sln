@@ -1,22 +1,29 @@
+using System;
+using System.Globalization;
+using System.Windows.Data;
+using RemindMe.Models;
 
-Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
-MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RemindMe", "src\RemindMe.csproj", "{9A1B2C3D-4E5F-6789-ABCD-EF0123456789}"
-EndProject
-Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Debug|Any CPU = Debug|Any CPU
-		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{9A1B2C3D-4E5F-6789-ABCD-EF0123456789}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{9A1B2C3D-4E5F-6789-ABCD-EF0123456789}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{9A1B2C3D-4E5F-6789-ABCD-EF0123456789}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{9A1B2C3D-4E5F-6789-ABCD-EF0123456789}.Release|Any CPU.Build.0 = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-EndGlobal
+namespace RemindMe.Converters;
+
+public class CategoryToIconConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (value is not BillCategory category) return "\uE719";
+
+        // Segoe MDL2 Assets glyphs — modern, built into Windows, no image assets needed.
+        return category switch
+        {
+            BillCategory.Utility => "\uE945",       // lightbulb-ish / info
+            BillCategory.Subscription => "\uE8A4",  // repeat / sync
+            BillCategory.Fee => "\uE8C7",            // tag
+            BillCategory.Rent => "\uE80F",           // home
+            BillCategory.Insurance => "\uE72E",      // shield
+            BillCategory.Loan => "\uE8C4",           // bank/money
+            _ => "\uE719"                             // generic bill/doc
+        };
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
