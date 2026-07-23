@@ -8,7 +8,7 @@ using Forms = System.Windows.Forms;
 
 namespace RemindMe;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     public static StorageService Storage { get; private set; } = null!;
     public static NotificationService Notifications { get; private set; } = null!;

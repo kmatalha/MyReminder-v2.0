@@ -8,7 +8,7 @@ public static class ThemeManager
 {
     public static void Apply(bool darkMode)
     {
-        var dicts = Application.Current.Resources.MergedDictionaries;
+        var dicts = System.Windows.Application.Current.Resources.MergedDictionaries;
         var existing = dicts.FirstOrDefault(d =>
             d.Source != null && (d.Source.OriginalString.Contains("LightTheme") || d.Source.OriginalString.Contains("DarkTheme")));
 
