@@ -48,6 +48,8 @@ public partial class MainWindow : Window
             });
         };
 
+        _scheduler.BillAlarm += (bill, overdue) => Dispatcher.Invoke(() => ShowAlarmForBill(bill, overdue));
+
         LoadBills();
         LoadSettingsIntoUi();
         RefreshSummary();
@@ -158,6 +160,14 @@ public partial class MainWindow : Window
     private void TestAlarm_Click(object sender, RoutedEventArgs e)
     {
         _notifications.ShowTestNotification(_settings.CustomAlarmSoundPath);
+        var alarm = new AlarmWindow(
+            "Test Alarm",
+            "If you can see and hear this, alarms are working.",
+            null,
+            _settings.CustomAlarmSoundPath,
+            showBillButtons: false)
+        { Owner = this };
+        alarm.Show();
     }
 
     private void ChooseAlarmSound_Click(object sender, RoutedEventArgs e)
@@ -322,6 +332,35 @@ public partial class MainWindow : Window
         SaveBills();
         LoadBills();
         RefreshSummary();
+    }
+
+    /// <summary>Pops the guaranteed in-app alarm screen (window + looping sound) for a due bill.</summary>
+    private void ShowAlarmForBill(Bill bill, bool overdue)
+    {
+        var daysDiff = overdue
+            ? (DateTime.Today - bill.DueDate.Date).Days
+            : (bill.DueDate.Date - DateTime.Today).Days;
+        var subtitle = overdue
+            ? $"Overdue by {daysDiff} day{(daysDiff == 1 ? "" : "s")}"
+            : daysDiff == 0
+                ? "Due today"
+                : $"Due in {daysDiff} day{(daysDiff == 1 ? "" : "s")}";
+
+        var alarm = new AlarmWindow(
+            $"{(overdue ? "⚠ " : "")}{bill.Name}",
+            subtitle,
+            bill.Description,
+            _settings.CustomAlarmSoundPath,
+            showBillButtons: true)
+        { Owner = this };
+
+        alarm.Closed += (_, _) =>
+        {
+            if (alarm.Result == AlarmWindow.AlarmResult.Paid) HandleToastAction(bill.Id, "pay");
+            else if (alarm.Result == AlarmWindow.AlarmResult.Snoozed) HandleToastAction(bill.Id, "snooze");
+        };
+
+        alarm.Show();
     }
 
     private static HistoryEntry MakeHistoryEntry(Bill bill, HistoryEventType type) => new()

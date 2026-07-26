@@ -56,7 +56,7 @@ public partial class App : System.Windows.Application
     {
         _trayIcon = new Forms.NotifyIcon
         {
-            Icon = Drawing.SystemIcons.Application,
+            Icon = LoadTrayIcon(),
             Visible = true,
             Text = "RemindMe"
         };
@@ -66,6 +66,27 @@ public partial class App : System.Windows.Application
         menu.Items.Add("Quit", null, (_, _) => QuitApp());
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (_, _) => ShowMainWindow();
+    }
+
+    /// <summary>Loads the app's own icon (embedded as a WPF resource, so this works in both
+    /// loose-file and single-file-published builds) - falls back to the generic system icon
+    /// if anything goes wrong.</summary>
+    private static Drawing.Icon LoadTrayIcon()
+    {
+        try
+        {
+            var streamInfo = GetResourceStream(new Uri("pack://application:,,,/Assets/AppIcon.ico"));
+            if (streamInfo is not null)
+            {
+                using var stream = streamInfo.Stream;
+                return new Drawing.Icon(stream);
+            }
+        }
+        catch
+        {
+            // Fall through to the system default below.
+        }
+        return Drawing.SystemIcons.Application;
     }
 
     public void ShowMainWindow()

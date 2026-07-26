@@ -18,6 +18,10 @@ public class ReminderScheduler
     private readonly Func<IEnumerable<Bill>> _getBills;
     private readonly Func<AppSettings> _getSettings;
 
+    /// <summary>Fired for every bill whose alarm goes off, in addition to the (best-effort) toast.
+    /// The subscriber is expected to show something the user can't miss - e.g. an in-app alarm window.</summary>
+    public event Action<Bill, bool>? BillAlarm;
+
     public ReminderScheduler(
         NotificationService notificationService,
         StorageService storageService,
@@ -61,6 +65,7 @@ public class ReminderScheduler
 
             var style = bill.NotificationStyleOverride ?? settings.DefaultNotificationStyle;
             _notificationService.ShowReminder(bill, style, overdue, settings.CustomAlarmSoundPath);
+            BillAlarm?.Invoke(bill, overdue);
             bill.LastNotifiedDate = today;
             changed = true;
         }
