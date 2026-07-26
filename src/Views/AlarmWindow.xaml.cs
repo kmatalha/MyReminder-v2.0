@@ -2,7 +2,9 @@ using System;
 using System.ComponentModel;
 using System.IO;
 using System.Media;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 
@@ -38,12 +40,41 @@ public partial class AlarmWindow : Window
         _autoStopTimer.Tick += (_, _) => StopSound();
         _autoStopTimer.Start();
 
-        Loaded += (_, _) =>
-        {
-            Activate();
-            Topmost = true;
-        };
+        Loaded += (_, _) => ForceToForeground();
     }
+
+    /// <summary>
+    /// This window is the "guaranteed" alarm, so it can't rely on being owned by MainWindow -
+    /// MainWindow is routinely Hidden (minimized to tray), and a Window whose Owner is not
+    /// currently visible can fail to actually appear on screen or come to the foreground on
+    /// Windows. This window is deliberately shown with no Owner (see MainWindow.ShowAlarmForBill
+    /// and TestAlarm_Click) and forces itself to the foreground here as a second safety net,
+    /// since Windows can otherwise refuse focus to a background process's new window.
+    /// </summary>
+    private void ForceToForeground()
+    {
+        try
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Topmost = false;
+            Topmost = true;
+            Activate();
+
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd != IntPtr.Zero)
+            {
+                SetForegroundWindow(hwnd);
+            }
+        }
+        catch
+        {
+            // Best effort - the window is already Show()n and Topmost via XAML either way.
+        }
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 
     private void StartSound(string? customSoundPath)
     {

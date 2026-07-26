@@ -20,6 +20,26 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Previously there were no global handlers at all: any uncaught exception on the UI
+        // thread (including inside the reminder scheduler's timer tick, before this fix isolated
+        // it) would silently terminate the entire process - no crash dialog, no window, nothing.
+        // That's indistinguishable from "the alarm just didn't ring". These handlers make sure
+        // that can't happen again: log it, and keep the app running whenever possible.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Logger.LogException("DispatcherUnhandledException", args.Exception);
+            args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex) Logger.LogException("AppDomain.UnhandledException", ex);
+        };
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            Logger.LogException("UnobservedTaskException", args.Exception);
+            args.SetObserved();
+        };
+
         Storage = new StorageService();
         Notifications = new NotificationService();
 

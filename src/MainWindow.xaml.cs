@@ -160,13 +160,14 @@ public partial class MainWindow : Window
     private void TestAlarm_Click(object sender, RoutedEventArgs e)
     {
         _notifications.ShowTestNotification(_settings.CustomAlarmSoundPath);
+        // No Owner: the alarm window must show and grab focus reliably even when MainWindow
+        // is hidden in the tray, which is exactly the state it's often in when a real alarm fires.
         var alarm = new AlarmWindow(
             "Test Alarm",
             "If you can see and hear this, alarms are working.",
             null,
             _settings.CustomAlarmSoundPath,
-            showBillButtons: false)
-        { Owner = this };
+            showBillButtons: false);
         alarm.Show();
     }
 
@@ -346,13 +347,17 @@ public partial class MainWindow : Window
                 ? "Due today"
                 : $"Due in {daysDiff} day{(daysDiff == 1 ? "" : "s")}";
 
+        // No Owner here on purpose: MainWindow is Hidden whenever the app is minimized to tray
+        // (its normal resting state), and a Window owned by a non-visible window can fail to
+        // actually appear or take focus on Windows. This alarm has to show no matter what state
+        // MainWindow is in, so it's a fully independent top-level window (see AlarmWindow's own
+        // foreground-forcing logic as a second safety net).
         var alarm = new AlarmWindow(
             $"{(overdue ? "⚠ " : "")}{bill.Name}",
             subtitle,
             bill.Description,
             _settings.CustomAlarmSoundPath,
-            showBillButtons: true)
-        { Owner = this };
+            showBillButtons: true);
 
         alarm.Closed += (_, _) =>
         {
