@@ -27,63 +27,55 @@ public class NotificationService
 
     public void ShowReminder(Bill bill, NotificationStyle style, bool overdue, string? customSoundPath = null)
     {
-        // Previously only builder.Show() was wrapped in try/catch. Building the toast content
-        // itself (ToastContentBuilder, AddButton, etc.) can also throw on some Windows builds -
-        // when that happened here, uncaught, it propagated straight out of the reminder
-        // scheduler's timer tick, which had nothing further downstream to catch it either. The
-        // guaranteed in-app alarm now fires before this method is ever called (see
-        // ReminderScheduler), so a failure anywhere in here is cosmetic rather than fatal - but
-        // it's still wrapped end to end so it can never throw at all.
+        var daysLeft = (bill.DueDate.Date - DateTime.Today).Days;
+        var subtitle = overdue
+            ? $"Overdue by {Math.Abs(daysLeft)} day{(Math.Abs(daysLeft) == 1 ? "" : "s")}"
+            : daysLeft == 0
+                ? "Due today"
+                : $"Due in {daysLeft} day{(daysLeft == 1 ? "" : "s")}";
+
+        var builder = new ToastContentBuilder()
+            .AddArgument("billId", bill.Id.ToString())
+            .AddText($"{(overdue ? "⚠ " : "")}{bill.Name}")
+            .AddText(subtitle);
+
+        if (!string.IsNullOrWhiteSpace(bill.Description))
+        {
+            builder.AddText(bill.Description);
+        }
+
+        builder.AddButton(new ToastButton("Mark as Paid", new ToastArguments()
+                .Add("action", "pay")
+                .Add("billId", bill.Id.ToString())
+                .ToString()))
+            .AddButton(new ToastButton("Snooze 1 Day", new ToastArguments()
+                .Add("action", "snooze")
+                .Add("billId", bill.Id.ToString())
+                .ToString()));
+
+        switch (style)
+        {
+            case NotificationStyle.Popup:
+                builder.SetToastDuration(ToastDuration.Long);
+                ApplyCustomAudio(builder, customSoundPath);
+                break;
+            case NotificationStyle.Subtle:
+                builder.SetToastDuration(ToastDuration.Short)
+                       .AddAudio(new Uri("ms-winsoundevent:Notification.Silent"));
+                break;
+            case NotificationStyle.Banner:
+            default:
+                ApplyCustomAudio(builder, customSoundPath);
+                break;
+        }
+
         try
         {
-            var daysLeft = (bill.DueDate.Date - DateTime.Today).Days;
-            var subtitle = overdue
-                ? $"Overdue by {Math.Abs(daysLeft)} day{(Math.Abs(daysLeft) == 1 ? "" : "s")}"
-                : daysLeft == 0
-                    ? "Due today"
-                    : $"Due in {daysLeft} day{(daysLeft == 1 ? "" : "s")}";
-
-            var builder = new ToastContentBuilder()
-                .AddArgument("billId", bill.Id.ToString())
-                .AddText($"{(overdue ? "⚠ " : "")}{bill.Name}")
-                .AddText(subtitle);
-
-            if (!string.IsNullOrWhiteSpace(bill.Description))
-            {
-                builder.AddText(bill.Description);
-            }
-
-            builder.AddButton(new ToastButton("Mark as Paid", new ToastArguments()
-                    .Add("action", "pay")
-                    .Add("billId", bill.Id.ToString())
-                    .ToString()))
-                .AddButton(new ToastButton("Snooze 1 Day", new ToastArguments()
-                    .Add("action", "snooze")
-                    .Add("billId", bill.Id.ToString())
-                    .ToString()));
-
-            switch (style)
-            {
-                case NotificationStyle.Popup:
-                    builder.SetToastDuration(ToastDuration.Long);
-                    ApplyCustomAudio(builder, customSoundPath);
-                    break;
-                case NotificationStyle.Subtle:
-                    builder.SetToastDuration(ToastDuration.Short)
-                           .AddAudio(new Uri("ms-winsoundevent:Notification.Silent"));
-                    break;
-                case NotificationStyle.Banner:
-                default:
-                    ApplyCustomAudio(builder, customSoundPath);
-                    break;
-            }
-
             builder.Show();
         }
         catch (Exception ex)
         {
-            Logger.LogException($"ShowReminder for '{bill.Name}'", ex);
-            NotificationFailed?.Invoke($"Couldn't show the toast for \"{bill.Name}\": {ex.Message}");
+            NotificationFailed?.Invoke($"Couldn't show the alarm for \"{bill.Name}\": {ex.Message}");
         }
     }
 

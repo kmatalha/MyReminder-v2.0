@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Windows;
+using System.Windows.Threading;
 using RemindMe.Services;
 using RemindMe.Views;
 using Drawing = System.Drawing;
@@ -20,55 +21,61 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        // Previously there were no global handlers at all: any uncaught exception on the UI
-        // thread (including inside the reminder scheduler's timer tick, before this fix isolated
-        // it) would silently terminate the entire process - no crash dialog, no window, nothing.
-        // That's indistinguishable from "the alarm just didn't ring". These handlers make sure
-        // that can't happen again: log it, and keep the app running whenever possible.
+        // Catch anything that would otherwise crash the whole app silently (this is the
+        // single biggest reason an alarm can appear to "do nothing" - an unhandled
+        // exception on the UI thread kills the process with no dialog and no log).
         DispatcherUnhandledException += (_, args) =>
         {
-            Logger.LogException("DispatcherUnhandledException", args.Exception);
-            args.Handled = true;
-        };
-        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-        {
-            if (args.ExceptionObject is Exception ex) Logger.LogException("AppDomain.UnhandledException", ex);
-        };
-        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
-        {
-            Logger.LogException("UnobservedTaskException", args.Exception);
-            args.SetObserved();
+            Logger.LogError("DispatcherUnhandledException", args.Exception);
+            MessageBox.Show(
+                $"RemindMe hit an unexpected error and would have closed:\n\n{args.Exception.Message}\n\nDetails were written to debug.log.",
+                "RemindMe - Unexpected Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            args.Handled = true; // keep the app alive instead of crashing
         };
 
-        Storage = new StorageService();
-        Notifications = new NotificationService();
+        Logger.Log("App starting up.");
 
-        ShortcutHelper.EnsureAppIdentity();
-
-        var settings = Storage.LoadSettings();
-        ThemeManager.Apply(settings.DarkMode);
-
-        SetupTrayIcon();
-
-        _mainWindow = new MainWindow();
-
-        Notifications.ToastActionInvoked += (billId, action) =>
+        try
         {
-            Dispatcher.Invoke(() =>
+            Storage = new StorageService();
+            Notifications = new NotificationService();
+
+            ShortcutHelper.EnsureAppIdentity();
+
+            var settings = Storage.LoadSettings();
+            ThemeManager.Apply(settings.DarkMode);
+
+            SetupTrayIcon();
+
+            _mainWindow = new MainWindow();
+
+            Notifications.ToastActionInvoked += (billId, action) =>
             {
-                _mainWindow.HandleToastAction(billId, action);
-                if (action is null)
+                Dispatcher.Invoke(() =>
                 {
-                    // Plain body tap: bring the app to the foreground so the user can look around.
-                    ShowMainWindow();
-                }
-            });
-        };
+                    _mainWindow.HandleToastAction(billId, action);
+                    if (action is null)
+                    {
+                        // Plain body tap: bring the app to the foreground so the user can look around.
+                        ShowMainWindow();
+                    }
+                });
+            };
 
-        var startMinimized = e.Args.Contains("--minimized");
-        if (!startMinimized)
+            var startMinimized = e.Args.Contains("--minimized");
+            if (!startMinimized)
+            {
+                ShowMainWindow();
+            }
+
+            Logger.Log("App startup completed successfully.");
+        }
+        catch (Exception ex)
         {
-            ShowMainWindow();
+            Logger.LogError("OnStartup", ex);
+            MessageBox.Show(
+                $"RemindMe failed to start:\n\n{ex.Message}\n\nDetails were written to debug.log.",
+                "RemindMe - Startup Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
@@ -95,16 +102,17 @@ public partial class App : System.Windows.Application
     {
         try
         {
-            var streamInfo = GetResourceStream(new Uri("pack://application:,,,/Assets/AppIcon.ico"));
+            // GetResourceStream needs a *relative* pack URI, not "pack://application:,,,/...".
+            var streamInfo = GetResourceStream(new Uri("Assets/AppIcon.ico", UriKind.Relative));
             if (streamInfo is not null)
             {
                 using var stream = streamInfo.Stream;
                 return new Drawing.Icon(stream);
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Fall through to the system default below.
+            Logger.LogError("LoadTrayIcon", ex);
         }
         return Drawing.SystemIcons.Application;
     }
